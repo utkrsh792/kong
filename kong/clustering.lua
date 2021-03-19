@@ -62,6 +62,7 @@ local clients = setmetatable({}, WEAK_KEY_MT)
 local prefix = ngx.config.prefix()
 local CONFIG_CACHE = prefix .. "/config.cache.json.gz"
 local CLUSTERING_SYNC_STATUS = kong_constants.CLUSTERING_SYNC_STATUS
+local deflated_reconfigure_payload
 local declarative_config
 local next_config
 
@@ -435,6 +436,31 @@ local function should_send_config_update(node_version, node_plugins)
 end
 
 
+local function export_deflated_reconfigure_payload()
+  local config_table, err = declarative.export_config()
+  if not config_table then
+    return nil, err
+  end
+
+  local payload, err = cjson_encode({
+    type = "reconfigure",
+    config_table = config_table,
+  })
+  if not payload then
+    return nil, err
+  end
+
+  payload, err = deflate_gzip(payload)
+  if not payload then
+    return nil, err
+  end
+
+  deflated_reconfigure_payload = payload
+
+  return payload
+end
+
+
 function _M.handle_cp_websocket()
   -- use mutual TLS authentication
   if kong.configuration.cluster_mtls == "shared" then
@@ -504,16 +530,12 @@ function _M.handle_cp_websocket()
   res, err, sync_status = should_send_config_update(node_version, node_plugins)
   if res then
     sync_status = CLUSTERING_SYNC_STATUS.NORMAL
-    local config_table
-    -- unconditionally send config update to new clients to
-    -- ensure they have latest version running
-    config_table, err = declarative.export_config()
-    if config_table then
-      local payload = cjson_encode({ type = "reconfigure",
-                                     config_table = config_table,
-                                   })
-      payload = assert(deflate_gzip(payload))
-      table_insert(queue, payload)
+    if not deflated_reconfigure_payload then
+      assert(export_deflated_reconfigure_payload())
+    end
+
+    if deflated_reconfigure_payload then
+      table_insert(queue, deflated_reconfigure_payload)
       queue.post()
 
     else
@@ -672,27 +694,17 @@ function _M.handle_cp_websocket()
 end
 
 
-local function push_config(config_table)
-  if not config_table then
-    local err
-    config_table, err = declarative.export_config()
-    if not config_table then
-      ngx_log(ngx_ERR, "unable to export config from database: " .. err)
-      return
-    end
+local function push_config()
+  local payload, err = export_deflated_reconfigure_payload()
+  if not payload then
+    ngx_log(ngx_ERR, "unable to export config from database: " .. err)
+    return
   end
 
-  local payload = cjson_encode({ type = "reconfigure",
-                                 config_table = config_table,
-                               })
-  payload = assert(deflate_gzip(payload))
-
   local n = 0
-
   for _, queue in pairs(clients) do
     table_insert(queue, payload)
     queue.post()
-
     n = n + 1
   end
 
@@ -700,13 +712,18 @@ local function push_config(config_table)
 end
 
 
-local function push_config_timer(premature, semaphore, delay)
+local function push_config_timer(premature, push_config_semaphore, delay)
   if premature then
     return
   end
 
+  local _, err = export_deflated_reconfigure_payload()
+  if err then
+    ngx_log(ngx_ERR, "unable to export initial config from database: " .. err)
+  end
+
   while not exiting() do
-    local ok, err = semaphore:wait(1)
+    local ok, err = push_config_semaphore:wait(1)
     if exiting() then
       return
     end
