@@ -4,10 +4,10 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Kong/kong/blob/master/LICENSE)
 [![Twitter](https://img.shields.io/twitter/follow/thekonginc.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=thekonginc)
 
-Kong is a cloud-native, fast, scalable, and distributed Microservice
+Kong is a cloud-native, fast, scalable, and distributed Microservice.
 Abstraction Layer *(also known as an API Gateway or API Middleware)*.
 Made available as an open-source project in 2015, its core values are
-high performance and extensibility.
+"high performance and extensibility".
 
 Actively maintained, Kong is widely used in production at companies ranging
 from startups to Global 5000 as well as government organizations.
@@ -21,11 +21,11 @@ IRC (freenode): [#kong](https://webchat.freenode.net/?channels=kong) |
 
 ## Summary
 
-- [**Why Kong?**](#why-kong)
-- [**Features**](#features)
-- [**Distributions**](#distributions)
-- [**Development**](#development)
-- [**Enterprise Support & Demo**](#enterprise-support--demo)
+- [**Why Kong?**](#Why-Kong)
+- [**Features**](#Features)
+- [**Distributions**](#Distributions)
+- [**Development**](#Development)
+- [**Enterprise Support & Demo**](#Enterprise-support--demo)
 - [**License**](#license)
 
 ## Why Kong?
@@ -129,7 +129,7 @@ code, other repos are also under active development:
 
 You can find every supported distribution at the [official installation page](https://konghq.com/install/).
 
-## Development
+## Developments
 
 We encourage community contributions to Kong. To make sure it is a smooth
 experience (both for you and for the Kong team), please read
